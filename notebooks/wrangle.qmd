@@ -1,0 +1,117 @@
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+```
+# Clean and wrangle data
+## Source data
+### Read data
+```{r}
+catch_original <- readr::read_csv(file = "https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1")
+```
+
+
+```{r}
+colnames(catch_original)
+head(catch_original)
+summary(catch_original)
+glimpse(catch_original)
+```
+
+## Clean and reshape data
+```{r}
+catch_data <- catch_original %>%
+    select(Region, Year, Chinook, Sockeye, Coho, Pink, Chum)
+```
+
+```{r}
+# Use a conditional to fix the bad value, then make the column numeric
+catch_clean <- catch_data %>%
+    dplyr::mutate(
+        Chinook = dplyr::if_else(condition = Chinook == "I", 
+            true = "1",
+            false = Chinook),
+        Chinook = as.numeric(Chinook))
+
+# Check the result
+catch_clean[i, ]
+```
+
+
+```{r}
+catch_long <- catch_clean %>% 
+    pivot_longer(cols = -c(Region, Year),
+        names_to = "species",
+        values_to = "catch_thousands"
+        )
+```
+
+
+```{r}
+catch_wider <- catch_long %>% 
+    pivot_wider(
+        names_from = species,
+        values_from = catch_thousands,
+        values_fill = 0
+    )
+```
+
+```{r}
+# Convert to actual fish numbers, then remove the superseded column
+catch_long <- catch_long %>%
+    dplyr::mutate(catch = catch_thousands * 1000) %>% 
+    dplyr::select(-catch_thousands)
+
+# Check the result
+dplyr::glimpse(catch_long)
+```
+
+```{r}
+mean_region <- catch_long %>% 
+    group_by(Region) %>% 
+    summarize(mean_catch = mean(catch, na.rm = TRUE), .groups = "drop")
+
+head(mean_region)
+```
+
+
+```{r}
+sse_catch <- catch_long %>% 
+    filter(Region == "SSE")
+
+head(sse_catch)
+```
+
+
+```{r}
+mean_region <- catch_long %>% 
+    group_by(Region) %>% 
+    summarize(mean_catch = mean(catch, na.rm = TRUE), .groups = "drop") %>% 
+    arrange(mean_catch)
+
+head(mean_region)
+```
+
+
+```{r}
+mean_region <- catch_long %>% 
+    group_by(Region) %>% 
+    summarize(mean_catch = mean(catch, na.rm = TRUE), .groups = "drop") %>% 
+    arrange(desc(mean_catch))
+
+head(mean_region)
+```
+
+### Experiment with unite and separate
+
+```{r}
+sites_df <- data.frame(site = c("HAW-101", "HAW-103", "OAH-320", "OAH-219", "MAU-039"))
+sites_df %>% 
+    separate_wider_delim(cols=site, delim = "-",
+    names = c("island", "site_number"),
+    cols_remove = FALSE)
+
+# Check that out
+head(sites_df) 
+```
